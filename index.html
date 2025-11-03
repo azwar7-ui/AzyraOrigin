@@ -7,7 +7,6 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
   <style>
     :root{
-      /* dark theme defaults */
       --bg-dark: #050512;
       --card: rgba(255,255,255,0.04);
       --glass-border: rgba(255,255,255,0.06);
@@ -15,17 +14,13 @@
       --accent-2:#6d4bff;
       --accent-3:#4ca0ff;
       --muted: rgba(230,230,255,0.6);
-
-      /* message colors use variables so theme switch works */
       --msg-me-bg: linear-gradient(90deg,var(--accent-2),var(--accent-3));
       --msg-me-color: #ffffff;
       --msg-other-bg: rgba(255,255,255,0.03);
       --msg-other-color: var(--muted);
       --page-bg: linear-gradient(180deg,#070617,#0b0b1a);
     }
-
     :root[data-theme="light"]{
-      /* light theme overrides */
       --page-bg: linear-gradient(180deg,#f7fafc,#e6eefb);
       --card: rgba(10,10,12,0.04);
       --glass-border: rgba(3,3,3,0.06);
@@ -35,23 +30,15 @@
       --msg-other-bg: #ffffff;
       --msg-other-color: #111827;
     }
-
     *{box-sizing:border-box;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;}
     html,body{height:100%;margin:0;background:var(--page-bg);color:var(--msg-other-color);-webkit-font-smoothing:antialiased;}
-
     /* Splash */
-    #splash{
-      position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;
-      background:radial-gradient(circle at center,#070416,#000);transition:opacity .55s cubic-bezier(.2,.9,.3,1), visibility .35s ease;
-    }
+    #splash{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;background:radial-gradient(circle at center,#070416,#000);transition:opacity .55s cubic-bezier(.2,.9,.3,1), visibility .35s ease;}
     #splash.hide{opacity:0;visibility:hidden;pointer-events:none}
     #splash img{width:160px;height:auto;opacity:0;transform:scale(.95);animation:logoIn .9s cubic-bezier(.2,.9,.3,1) forwards, glow 1.6s ease-in-out infinite alternate;}
     #splash h1{margin-top:12px;letter-spacing:3px;color:#F3F3F7;opacity:0;animation:textIn .9s cubic-bezier(.2,.9,.3,1) .25s forwards;text-shadow:0 0 12px var(--accent);}
     #splash p{color:var(--muted);margin-top:8px;opacity:0;animation:textIn .9s cubic-bezier(.2,.9,.3,1) .45s forwards;}
-    @keyframes logoIn{to{opacity:1;transform:scale(1);}}
-    @keyframes textIn{to{opacity:1;transform:translateY(0);}}
-    @keyframes glow{from{filter:drop-shadow(0 0 6px var(--accent));} to{filter:drop-shadow(0 0 20px var(--accent));}}
-
+    @keyframes logoIn{to{opacity:1;transform:scale(1);}} @keyframes textIn{to{opacity:1;transform:translateY(0);}} @keyframes glow{from{filter:drop-shadow(0 0 6px var(--accent));} to{filter:drop-shadow(0 0 20px var(--accent));}}
     /* App */
     .app-wrap{min-height:100vh;display:flex;align-items:stretch;justify-content:center;padding:18px;transition:background .3s;}
     .card{background:var(--card);border:1px solid var(--glass-border);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-radius:14px;box-shadow:0 12px 34px rgba(2,4,12,0.6);}
@@ -90,13 +77,13 @@
     .loader { width:28px;height:28px;border-radius:999px;border:3px solid rgba(255,255,255,0.06);border-top-color:var(--accent);animation:spin .9s linear infinite;}
     @keyframes spin{to{transform:rotate(360deg)}}
     @media (max-width:520px){ .avatar{width:40px;height:40px;} .id-pill{font-size:12px;padding:5px 6px;} .btn{padding:9px 10px;} }
-
-    /* prevent background scroll while splash active */
     body.splash-active{overflow:hidden}
+    /* small input tweaks for mobile */
+    input, button, textarea { font-size: 15px; -webkit-tap-highlight-color: transparent; }
   </style>
 </head>
 <body>
-  <!-- Splash (always shows on load) -->
+  <!-- Splash -->
   <div id="splash" role="dialog" aria-label="Azyra Intro">
     <img id="splashLogo" alt="Azyra Logo" src="https://i.postimg.cc/jj6F6YXt/Whats-App-Image-2025-10-30-at-12-16-21-PM.png" />
     <h1>Azyra Origin</h1>
@@ -164,7 +151,6 @@
             </div>
             <div id="activeChatActions" style="display:flex;gap:8px;align-items:center;">
               <div id="activeMini" style="font-size:22px">—</div>
-              <!-- Edit friend name button (new) -->
               <button id="editFriendNameBtn" class="ghost" title="Save friend name" style="font-size:14px;padding:8px;border-radius:8px;">✏️</button>
             </div>
           </div>
@@ -207,7 +193,6 @@
     </div>
   </div>
 
-  <!-- Save Friend Name Modal (NEW) -->
   <div id="modalSaveFriend" class="modal hide" role="dialog" aria-modal="true" aria-label="Save friend name dialog">
     <div class="box card">
       <h3 style="margin-bottom:8px">Save Friend Name</h3>
@@ -220,29 +205,28 @@
     </div>
   </div>
 
-  <!-- Signup/Login Modal -->
+  <!-- Signup/Login Modal (minimal: name + password on signup; login accepts name or azyra_id + password) -->
   <div id="modalAuth" class="modal hide" role="dialog" aria-modal="true" aria-label="Authentication dialog">
-    <div class="box card">
+    <div class="box card" style="max-width:420px;">
       <h3 id="authTitle" style="margin-bottom:8px">Signup</h3>
       <div style="display:flex;flex-direction:column;gap:8px;">
-        <input id="authName" placeholder="Name (2-20 chars)" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit;">
+        <input id="authName" placeholder="Name or Azyra ID (az_xxx) - for login use either" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit;">
         <input id="authPassword" placeholder="Password" type="password" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit;">
         <div style="display:flex;gap:8px;align-items:center;">
           <button id="authPrimary" class="btn">Signup</button>
           <button id="authToggle" class="ghost">Already have an account? Log in</button>
         </div>
-        <div id="authNote" class="small-muted">No email required. We generate a unique Azyra ID for you.</div>
+        <div id="authNote" class="small-muted">Signup: just name + password. Login: use name or your Azyra ID + password.</div>
+        <div id="authStatus" class="small-muted" style="margin-top:6px"></div>
       </div>
     </div>
   </div>
 
   <!-- Supabase + App script -->
   <script type="module">
-    // Supabase client (ESM CDN)
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
-    // ---------- SUPABASE CONFIG (your project) ----------
-    // You gave this URL & key; they are used here.
+    // ---------- SUPABASE CONFIG (from you) ----------
     const SUPABASE_URL = 'https://pljriesojkujcpjzpkgt.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBsanJpZXNvamt1amNwanpwa2d0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIxNDgyNTIsImV4cCI6MjA3NzcyNDI1Mn0.83xKUb8_SW3_Er6YYGyrLouv6kmbR89MJL6e5b4u5qU';
 
@@ -261,43 +245,18 @@
     };
 
     // ---------- State ----------
-    // we persist myId & myName in localStorage (auto-login on device)
     let myId = localStorage.getItem('azyra_id') || null;
     let myName = localStorage.getItem('azyra_name') || null;
     let friends = JSON.parse(localStorage.getItem('azyra_friends') || '[]');
     let friendNames = JSON.parse(localStorage.getItem('azyra_friend_names') || '{}');
     let activeRoomId = null;
     let lastSent = 0;
-
-    // realtime subscription for messages
     let messagesSubscription = null;
-
-    // batch incoming messages to avoid UI jank
     let pendingMsgQueue = [];
     let draining = false;
-    function queueMessage(msg){
-      pendingMsgQueue.push(msg);
-      if(typeof requestIdleCallback === 'function'){
-        requestIdleCallback(drainQueue, {timeout: 200});
-      } else {
-        requestAnimationFrame(drainQueue);
-      }
-    }
-    function drainQueue(){
-      if(draining) return;
-      draining = true;
-      const chunk = pendingMsgQueue.splice(0, 20);
-      chunk.forEach(renderMessageRowImmediate);
-      draining = false;
-      if(pendingMsgQueue.length > 0){
-        if(typeof requestIdleCallback === 'function'){ requestIdleCallback(drainQueue, {timeout:200}); }
-        else { setTimeout(drainQueue, 48); }
-      } else {
-        requestAnimationFrame(()=> scrollMessagesToBottom(true));
-      }
-    }
+    let currentFriendId = null;
 
-    // DOM
+    // ---------- DOM refs ----------
     const splash = el('splash'), appWrap = el('app');
     const splashLogo = el('splashLogo') || el('splash').querySelector('img');
     const myIdEl = el('myId'), meNameEl = el('meName'), meHintEl = el('meHint');
@@ -309,15 +268,13 @@
     const messagesEl = el('messages'), messageInput = el('messageInput'), sendBtn = el('sendBtn');
     const themeToggle = el('themeToggle');
 
-    // Save friend modal elements
     const modalSaveFriend = el('modalSaveFriend'), saveFriendNameInput = el('saveFriendNameInput');
     const confirmSaveFriend = el('confirmSaveFriend'), cancelSaveFriend = el('cancelSaveFriend');
     const editFriendNameBtn = el('editFriendNameBtn');
 
-    // Auth modal elements
-    const modalAuth = el('modalAuth'), authTitle = el('authTitle'), authName = el('authName'), authPassword = el('authPassword'), authPrimary = el('authPrimary'), authToggle = el('authToggle'), authNote = el('authNote');
+    const modalAuth = el('modalAuth'), authTitle = el('authTitle'), authName = el('authName'), authPassword = el('authPassword'), authPrimary = el('authPrimary'), authToggle = el('authToggle'), authNote = el('authNote'), authStatus = el('authStatus');
 
-    // UI Utilities
+    // ---------- UI Utilities ----------
     function showModal(m){ if(!m) return; m.classList.remove('hide'); m.style.display = 'flex'; setTimeout(()=>m.querySelector('input')?.focus(), 120); }
     function hideModal(m){ if(!m) return; m.classList.add('hide'); m.style.display = 'none'; }
 
@@ -330,12 +287,9 @@
 
     function persistFriends(){ localStorage.setItem('azyra_friends', JSON.stringify(friends)); }
     function persistFriendNames(){ localStorage.setItem('azyra_friend_names', JSON.stringify(friendNames)); }
+    function persistMe(){ if(myId) localStorage.setItem('azyra_id', myId); if(myName) localStorage.setItem('azyra_name', myName); }
 
-    // nickname helpers
-    function getDisplayName(id){
-      if(!id) return '—';
-      return friendNames[id] || id;
-    }
+    function getDisplayName(id){ if(!id) return '—'; return friendNames[id] || id; }
     function getInitialsFor(id){
       const name = getDisplayName(id);
       if(!name) return '--';
@@ -390,22 +344,41 @@
 
     function makeRoomId(a,b){ return [a,b].sort().join('__'); }
 
-    // message rendering helpers
+    // batching for incoming messages
+    function queueMessage(msg){
+      pendingMsgQueue.push(msg);
+      if(typeof requestIdleCallback === 'function'){
+        requestIdleCallback(drainQueue, {timeout: 200});
+      } else {
+        requestAnimationFrame(drainQueue);
+      }
+    }
+    function drainQueue(){
+      if(draining) return;
+      draining = true;
+      const chunk = pendingMsgQueue.splice(0, 20);
+      chunk.forEach(renderMessageRowImmediate);
+      draining = false;
+      if(pendingMsgQueue.length > 0){
+        if(typeof requestIdleCallback === 'function'){ requestIdleCallback(drainQueue, {timeout:200}); }
+        else { setTimeout(drainQueue, 48); }
+      } else {
+        requestAnimationFrame(()=> scrollMessagesToBottom(true));
+      }
+    }
+
     function renderMessageRowImmediate(msg){
       if(!msg) return;
       const id = msg.id || msg._id || (msg.created_at? msg.created_at: Math.random().toString(36).slice(2,9));
       if(document.getElementById('m_'+id)) return;
       const wrap = document.createElement('div'); wrap.id = 'm_' + id;
       wrap.className = 'msg ' + ((msg.sender_id === myId || msg.senderId === myId) ? 'me' : 'other');
-      // message text: content or text
       const text = msg.content || msg.text || '';
       const name = msg.sender_name || msg.senderName || msg.senderId || msg.sender_id || '';
-      const createdAt = msg.created_at || msg.createdAt || msg.createdAtISO || Date.now();
+      const createdAt = msg.timestamp || msg.created_at || msg.createdAt || Date.now();
       wrap.innerHTML = `<div>${escapeHtml(text)}</div><div class="meta">${escapeHtml(name)} • ${timeLabel(createdAt)}</div>`;
       messagesEl.appendChild(wrap);
-      // trim
       const max = 400; while(messagesEl.children.length > max) messagesEl.removeChild(messagesEl.children[0]);
-      // animate in
       requestAnimationFrame(()=> wrap.classList.add('visible'));
     }
 
@@ -427,11 +400,10 @@
       }
     }
 
-    // ---------- Supabase messages listener management ----------
+    // ---------- Supabase listener management ----------
     async function detachMessagesListener(){
       try {
         if(messagesSubscription){
-          // unsubscribe previous subscription
           await supabase.removeChannel(messagesSubscription);
         }
       } catch(e){ console.warn('unsubscribe failed', e); }
@@ -439,6 +411,7 @@
       pendingMsgQueue = [];
     }
 
+    // load recent messages for room (supports both timestamp or created_at)
     async function loadInitialMessagesFor(roomId){
       if(!roomId) return;
       messagesEl.innerHTML = '<div class="small-muted center">Loading messages… <span style="margin-left:8px" class="loader"></span></div>';
@@ -447,20 +420,37 @@
           .from('messages')
           .select('*')
           .eq('azyra_room', roomId)
-          .order('created_at', { ascending: true })
-          .limit(300);
-        if(error) throw error;
-        messagesEl.innerHTML = '';
-        if(!data || data.length === 0){
-          messagesEl.innerHTML = '<div class="small-muted center">No messages — say hi</div>';
+          .order('timestamp', { ascending: true })
+          .limit(500);
+        if(error) {
+          // fallback: try ordering by created_at if timestamp column not present
+          const { data: altData, error: altErr } = await supabase
+            .from('messages')
+            .select('*')
+            .eq('azyra_room', roomId)
+            .order('created_at', { ascending: true })
+            .limit(500);
+          if(altErr) throw altErr;
+          messagesEl.innerHTML = '';
+          if(!altData || altData.length === 0){ messagesEl.innerHTML = '<div class="small-muted center">No messages — say hi</div>'; return; }
+          altData.forEach(d => renderMessageRowImmediate({
+            id: d.id,
+            senderId: d.sender_id || d.sendr_id,
+            sender_name: d.sender_name || d.sender || '',
+            text: d.content,
+            created_at: d.timestamp || d.created_at
+          }));
+          setTimeout(()=> scrollMessagesToBottom(false), 80);
           return;
         }
+        messagesEl.innerHTML = '';
+        if(!data || data.length === 0){ messagesEl.innerHTML = '<div class="small-muted center">No messages — say hi</div>'; return; }
         data.forEach(d => renderMessageRowImmediate({
-          id: d.id || d.created_at,
-          senderId: d.sender_id,
-          senderName: d.sender_name,
+          id: d.id,
+          senderId: d.sender_id || d.sendr_id,
+          sender_name: d.sender_name || d.sender || '',
           text: d.content,
-          createdAt: d.created_at
+          created_at: d.timestamp || d.created_at
         }));
         setTimeout(()=> scrollMessagesToBottom(false), 80);
       } catch(e){
@@ -471,51 +461,38 @@
 
     async function subscribeToRoom(roomId){
       if(!roomId) return;
-      // detach old
       await detachMessagesListener();
-
-      // Subscribe to inserts on messages where room matches
       const filter = `azyra_room=eq.${roomId}`;
       messagesSubscription = supabase.channel(`room_${roomId}`)
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter }, (payload) => {
           const newRow = payload.new;
           renderMessageRow({
-            id: newRow.id || newRow.created_at,
-            senderId: newRow.sender_id,
-            senderName: newRow.sender_name,
+            id: newRow.id,
+            senderId: newRow.sender_id || newRow.sendr_id,
+            senderName: newRow.sender_name || '',
             text: newRow.content,
-            createdAt: newRow.created_at
+            createdAt: newRow.timestamp || newRow.created_at
           });
         })
         .subscribe(async (status) => {
-          // status can be 'SUBSCRIBED' etc.
-          // console.log('subscribe status', status);
+          // nothing extra
         });
     }
 
     async function openChatWith(friendId){
       if(!myId){ alert('Please sign up or log in first.'); openAuthModal(); return; }
-      // store current friend id for save-name functionality
       currentFriendId = friendId;
-
-      // use saved display name if exists
+      activeRoomId = makeRoomId(myId, friendId);
       activeTitle.textContent = getDisplayName(friendId);
       activeSub.textContent = 'Private chat';
       activeMini.textContent = getInitialsFor(friendId);
-      activeRoomId = makeRoomId(myId, friendId);
 
-      // reset UI
       messagesEl.innerHTML = '<div class="small-muted center">Loading messages… <span style="margin-left:8px" class="loader"></span></div>';
-
-      // detach previous subscription and load messages
       await detachMessagesListener();
       await loadInitialMessagesFor(activeRoomId);
       await subscribeToRoom(activeRoomId);
 
-      // ensure friend in local list
       if(!friends.includes(friendId)){ friends.unshift(friendId); persistFriends(); renderFriends(); }
-
-      // enable composer
       messageInput.disabled = false;
       sendBtn.disabled = true;
       messageInput.focus();
@@ -529,11 +506,16 @@
       const now = Date.now();
       if(now - lastSent < 600) return;
       lastSent = now;
+      // populate both column name variants to maximize compatibility with whatever schema you used
       const payload = {
         azyra_room: activeRoomId,
         sender_id: myId,
+        sendr_id: myId,
         sender_name: myName || myId,
+        receiver_id: currentFriendId || null,
+        reciver_id: currentFriendId || null,
         content: text.trim(),
+        timestamp: nowISO,
         created_at: nowISO
       };
       try {
@@ -564,7 +546,6 @@
       }
     });
 
-    // theme toggle
     function applyTheme(theme){
       if(theme === 'light'){
         document.documentElement.setAttribute('data-theme','light');
@@ -587,11 +568,8 @@
       if(v.length < 2 || v.length > 20){ alert('Name 2-20 chars'); return; }
       myName = v; localStorage.setItem('azyra_name', myName); renderMyCard(); hideModal(modalName);
       if(myId){
-        // update users table
         try {
-          const { error } = await supabase
-            .from('users')
-            .upsert({ azyra_id: myId, name: myName }, { onConflict: 'azyra_id' });
+          const { error } = await supabase.from('users').upsert({ azyra_id: myId, name: myName }, { onConflict: 'azyra_id' });
           if(error) throw error;
         } catch(e){ console.warn('update user failed', e); }
       }
@@ -612,227 +590,126 @@
     let resizeRaf = null;
     function resizeTextarea(){
       if(resizeRaf) cancelAnimationFrame(resizeRaf);
-      resizeRaf = requestAnimationFrame(()=>{
-        messageInput.style.height = 'auto';
-        const h = clamp(messageInput.scrollHeight, 48, 140);
-        messageInput.style.height = h + 'px';
-      });
+      resizeRaf = requestAnimationFrame(()=>{ messageInput.style.height = 'auto'; const h = clamp(messageInput.scrollHeight, 48, 140); messageInput.style.height = h + 'px'; });
     }
-    messageInput.addEventListener('input', ()=> {
-      sendBtn.disabled = messageInput.value.trim().length === 0;
-      resizeTextarea();
-    });
+    messageInput.addEventListener('input', ()=> { sendBtn.disabled = messageInput.value.trim().length === 0; resizeTextarea(); });
     messageInput.addEventListener('keydown', (e)=> {
-      if(e.key === 'Enter' && !e.shiftKey){
-        e.preventDefault();
-        if(!sendBtn.disabled) sendBtn.click();
-      }
+      if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); if(!sendBtn.disabled) sendBtn.click(); }
     });
-    sendBtn.addEventListener('click', ()=> {
-      const text = messageInput.value.trim();
-      if(!text) return;
-      sendMessage(text);
-    });
+    sendBtn.addEventListener('click', ()=> { const text = messageInput.value.trim(); if(!text) return; sendMessage(text); });
 
-    // click outside modal to hide
     document.querySelectorAll('.modal').forEach(m=>{ m.addEventListener('click', (e)=>{ if(e.target === m) hideModal(m); }); });
 
-    // ---------- Save Friend Name logic ----------
-    function openSaveFriendModal(){
-      if(!currentFriendId){ alert('Open a chat first'); return; }
-      saveFriendNameInput.value = friendNames[currentFriendId] || '';
-      showModal(modalSaveFriend);
-    }
-    function saveFriendName(){
-      if(!currentFriendId) return;
-      const v = (saveFriendNameInput.value || '').trim();
-      if(!v){
-        delete friendNames[currentFriendId];
-      } else {
-        friendNames[currentFriendId] = v;
-      }
-      persistFriendNames();
-      if(currentFriendId){
-        activeTitle.textContent = getDisplayName(currentFriendId);
-        activeMini.textContent = getInitialsFor(currentFriendId);
-      }
-      renderFriends();
-      hideModal(modalSaveFriend);
-    }
+    // Save friend name
+    function openSaveFriendModal(){ if(!currentFriendId){ alert('Open a chat first'); return; } saveFriendNameInput.value = friendNames[currentFriendId] || ''; showModal(modalSaveFriend); }
+    function saveFriendName(){ if(!currentFriendId) return; const v = (saveFriendNameInput.value || '').trim(); if(!v) delete friendNames[currentFriendId]; else friendNames[currentFriendId] = v; persistFriendNames(); if(currentFriendId){ activeTitle.textContent = getDisplayName(currentFriendId); activeMini.textContent = getInitialsFor(currentFriendId);} renderFriends(); hideModal(modalSaveFriend); }
     cancelSaveFriend.addEventListener('click', ()=> hideModal(modalSaveFriend));
     confirmSaveFriend.addEventListener('click', saveFriendName);
     if(editFriendNameBtn) editFriendNameBtn.addEventListener('click', openSaveFriendModal);
 
-    // ---------- AUTH (signup/login stored in `users` table) ----------
+    // ---------- AUTH (signup/login with hashed password) ----------
     let authMode = 'signup'; // 'signup' or 'login'
-    function openAuthModal(mode='signup'){
-      authMode = mode;
-      authTitle.textContent = (mode === 'signup') ? 'Signup' : 'Log in';
-      authPrimary.textContent = (mode === 'signup') ? 'Signup' : 'Login';
-      authToggle.textContent = (mode === 'signup') ? 'Already have an account? Log in' : 'New here? Signup';
-      authName.value = '';
-      authPassword.value = '';
-      showModal(modalAuth);
-    }
+    function openAuthModal(mode='signup'){ authMode = mode; authTitle.textContent = (mode === 'signup') ? 'Signup' : 'Log in'; authPrimary.textContent = (mode === 'signup') ? 'Signup' : 'Login'; authToggle.textContent = (mode === 'signup') ? 'Already have an account? Log in' : 'New here? Signup'; authName.value = ''; authPassword.value = ''; authStatus.textContent=''; showModal(modalAuth); }
     function closeAuthModal(){ hideModal(modalAuth); }
 
-    // auth primary action
+    // helper: SHA-256 hash to hex
+    async function hashPassword(password) {
+      const enc = new TextEncoder().encode(password);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', enc);
+      const hArray = Array.from(new Uint8Array(hashBuffer));
+      return hArray.map(b => b.toString(16).padStart(2,'0')).join('');
+    }
+
     authPrimary.addEventListener('click', async ()=>{
-      const name = (authName.value || '').trim();
+      const nameOrId = (authName.value || '').trim();
       const pass = (authPassword.value || '').trim();
-      if(name.length < 2 || name.length > 20){ alert('Name 2-20 chars'); return; }
-      if(pass.length < 3){ alert('Password must be at least 3 chars'); return; }
+      if(nameOrId.length < 2){ authStatus.textContent = 'Name / Azyra ID must be at least 2 chars'; return; }
+      if(pass.length < 3){ authStatus.textContent = 'Password must be at least 3 chars'; return; }
 
       if(authMode === 'signup'){
         // create new user row with generated azyra id
+        authStatus.textContent = 'Signing up…';
         const newId = generateAzyraId();
         try {
-          const payload = { azyra_id: newId, name, password: pass, created_at: new Date().toISOString() };
+          const hashed = await hashPassword(pass);
+          const payload = { name: nameOrId, password: hashed, azyra_id: newId, created_at: new Date().toISOString() };
           const { data, error } = await supabase.from('users').insert([payload]).select().single();
-          if(error){
-            // maybe name already exists — give feedback
-            alert('Signup failed: ' + (error.message || JSON.stringify(error)));
-            return;
-          }
-          // success: save locally
+          if(error){ authStatus.textContent = 'Signup failed: ' + (error.message || JSON.stringify(error)); return; }
           myId = data.azyra_id || newId;
-          myName = data.name || name;
-          localStorage.setItem('azyra_id', myId);
-          localStorage.setItem('azyra_name', myName);
+          myName = data.name || nameOrId;
+          persistMe();
           renderMyCard();
           closeAuthModal();
-          ensureUserInDb(); // upsert just in case
-          // open first chat placeholder or just continue
-        } catch(e){
-          console.error('signup error', e);
-          alert('Signup failed — check console.');
-        }
+          // ensure row present
+          try { await supabase.from('users').upsert({ azyra_id: myId, name: myName, updated_at: new Date().toISOString() }, { onConflict: 'azyra_id' }); } catch(e){/*ignore*/ }
+          setTimeout(()=>{ renderFriends(); if(friends.length>0) openChatWith(friends[0]); }, 900);
+        } catch(e){ console.error('signup error', e); authStatus.textContent = 'Signup failed — see console'; }
       } else {
-        // login: find row
+        // login: name or azyra id
+        authStatus.textContent = 'Logging in…';
         try {
-          const { data, error } = await supabase
-            .from('users')
-            .select('*')
-            .eq('name', name)
-            .eq('password', pass)
-            .limit(1)
-            .single();
-          if(error){ alert('Login failed — check name/password'); return; }
-          // success
+          const hashed = await hashPassword(pass);
+          let query = supabase.from('users').select('*').limit(1);
+          if(nameOrId.startsWith('az_')){
+            query = query.eq('azyra_id', nameOrId);
+          } else {
+            query = query.eq('name', nameOrId);
+          }
+          query = query.eq('password', hashed);
+          const { data, error } = await query.single();
+          if(error){ authStatus.textContent = 'Login failed — check name/Azyra ID & password'; return; }
           myId = data.azyra_id;
           myName = data.name;
-          localStorage.setItem('azyra_id', myId);
-          localStorage.setItem('azyra_name', myName);
-          renderMyCard();
-          closeAuthModal();
-        } catch(e){
-          console.error('login error', e);
-          alert('Login failed — check console.');
-        }
+          persistMe(); renderMyCard(); closeAuthModal();
+          setTimeout(()=>{ renderFriends(); if(friends.length>0) openChatWith(friends[0]); }, 600);
+        } catch(e){ console.error('login error', e); authStatus.textContent = 'Login failed — see console'; }
       }
     });
 
-    // toggle auth mode
-    authToggle.addEventListener('click', ()=> {
-      authMode = (authMode === 'signup') ? 'login' : 'signup';
-      openAuthModal(authMode);
-    });
+    authToggle.addEventListener('click', ()=> { authMode = (authMode === 'signup') ? 'login' : 'signup'; openAuthModal(authMode); });
 
-    // open auth if no local user at startup
-    function openAuthIfNeeded(){
-      if(!myId || !myName){
-        // if server-side we could check cookie — but here we just prompt
-        setTimeout(()=> openAuthModal('signup'), 600);
-      }
-    }
+    function openAuthIfNeeded(){ if(!myId || !myName){ setTimeout(()=> openAuthModal('signup'), 600); } }
 
-    // logout
     logoutBtn.addEventListener('click', async ()=> {
       if(!confirm('Logout from this device?')) return;
-      localStorage.removeItem('azyra_id');
-      localStorage.removeItem('azyra_name');
-      myId = null; myName = null;
-      renderMyCard();
-      // detach realtime
+      localStorage.removeItem('azyra_id'); localStorage.removeItem('azyra_name');
+      myId = null; myName = null; renderMyCard();
       await detachMessagesListener();
       messagesEl.innerHTML = '<div class="small-muted center">Logged out — sign up or login</div>';
       openAuthModal('login');
     });
 
-    // ensure user row exists (upsert) — safe to call
     async function ensureUserInDb(){
       if(!myId) return;
-      try {
-        await supabase.from('users').upsert({ azyra_id: myId, name: myName || '', updated_at: new Date().toISOString() }, { onConflict: 'azyra_id' });
-      } catch(e){ console.warn('ensure user failed', e); }
+      try { await supabase.from('users').upsert({ azyra_id: myId, name: myName || '', updated_at: new Date().toISOString() }, { onConflict: 'azyra_id' }); } catch(e){ console.warn('ensure user failed', e); }
     }
 
     // ---------- Initialization ----------
     function initialSetup(){
-      // theme
       const theme = localStorage.getItem('azyra_theme') || 'dark';
       applyTheme(theme);
-
-      // ensure splash smoothing + no scroll during splash
       document.body.classList.add('splash-active');
-
-      if(!myId){
-        // keep myId null until signup/login
-        // we will prompt in a moment
-      } else {
-        // we have local user -> ensure in DB
-        ensureUserInDb();
-      }
-
-      // render UI
+      if(myId){ ensureUserInDb(); }
       renderMyCard(); renderFriends();
-
-      // splash hide logic (smoother on mobile)
       let hidden = false;
-      const hideSplash = ()=>{
-        if(hidden) return;
-        hidden = true;
-        splash.classList.add('hide');
-        setTimeout(()=> { splash.style.display = 'none'; }, 580);
-        appWrap.style.display = 'block';
-        document.body.classList.remove('splash-active');
-      };
-
+      const hideSplash = ()=>{ if(hidden) return; hidden = true; splash.classList.add('hide'); setTimeout(()=> { splash.style.display = 'none'; }, 580); appWrap.style.display = 'block'; document.body.classList.remove('splash-active'); };
       const isMobile = /Mobi|Android/i.test(navigator.userAgent);
-      const fallbackDelay = isMobile ? 2800 : 1200;
+      const fallbackDelay = isMobile ? 2400 : 1200;
+      if(splashLogo && splashLogo.complete){ setTimeout(hideSplash, isMobile ? 1400 : 700); }
+      else if(splashLogo){ splashLogo.addEventListener('load', ()=> hideSplash()); splashLogo.addEventListener('error', ()=> hideSplash()); setTimeout(()=> hideSplash(), fallbackDelay); }
+      else { setTimeout(hideSplash, fallbackDelay); }
 
-      if(splashLogo && splashLogo.complete){
-        setTimeout(hideSplash, isMobile ? 1400 : 700);
-      } else if(splashLogo){
-        splashLogo.addEventListener('load', ()=> hideSplash());
-        splashLogo.addEventListener('error', ()=> hideSplash());
-        setTimeout(()=> hideSplash(), fallbackDelay);
-      } else {
-        setTimeout(hideSplash, fallbackDelay);
-      }
-
-      // open first friend chat if any
-      if(friends.length > 0){
-        // if logged in we can open
-        if(myId) openChatWith(friends[0]);
-      }
-
-      // if no user, open auth modal after splash
-      setTimeout(()=> {
-        if(!myId || !myName) openAuthIfNeeded();
-      }, fallbackDelay + 300);
-
-      // periodically refresh presence (optional)
+      if(friends.length > 0){ if(myId) openChatWith(friends[0]); }
+      setTimeout(()=> { if(!myId || !myName) openAuthIfNeeded(); }, fallbackDelay + 300);
       setInterval(()=> { if(myId) ensureUserInDb(); }, 60_000);
     }
 
-    // accessibility: ESC to close modals
-    window.addEventListener('keydown', (e)=> {
-      if(e.key === 'Escape') document.querySelectorAll('.modal').forEach(m=> hideModal(m));
-    });
-
-    // Start
+    window.addEventListener('keydown', (e)=> { if(e.key === 'Escape') document.querySelectorAll('.modal').forEach(m=> hideModal(m)); });
     window.addEventListener('load', initialSetup);
+
+    // accessibility and UI small features
+    // copy/paste quick-add friend from prompt
+    window.promptAddFriend = ()=> { const fid = prompt('Paste friend Azyra ID (e.g. az_ab12cd)'); if(fid) addFriendById(fid); };
 
   </script>
 </body>
