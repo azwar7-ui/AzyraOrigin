@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Azyra Origin — v1</title>
+  <title>Azyra Origin — v1 (Supabase)</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
   <style>
     :root{
@@ -118,6 +118,7 @@
         <div style="display:flex;gap:10px;align-items:center;">
           <button id="themeToggle" class="ghost" aria-pressed="false" title="Toggle theme">Dark</button>
           <button id="shareIdBtn" class="btn" title="Share your Azyra ID">Share ID</button>
+          <button id="logoutBtn" class="ghost" title="Logout" style="display:none;margin-left:6px;">Logout</button>
         </div>
       </div>
 
@@ -219,26 +220,33 @@
     </div>
   </div>
 
-  <!-- Firebase + App script -->
+  <!-- Signup/Login Modal -->
+  <div id="modalAuth" class="modal hide" role="dialog" aria-modal="true" aria-label="Authentication dialog">
+    <div class="box card">
+      <h3 id="authTitle" style="margin-bottom:8px">Signup</h3>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <input id="authName" placeholder="Name (2-20 chars)" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit;">
+        <input id="authPassword" placeholder="Password" type="password" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit;">
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button id="authPrimary" class="btn">Signup</button>
+          <button id="authToggle" class="ghost">Already have an account? Log in</button>
+        </div>
+        <div id="authNote" class="small-muted">No email required. We generate a unique Azyra ID for you.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Supabase + App script -->
   <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
-    import {
-      getDatabase, ref, push, onChildAdded, off, set, query, limitToLast
-    } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
+    // Supabase client (ESM CDN)
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
-    // ---------- YOUR Firebase config (azyra-origin) ----------
-    const firebaseConfig = {
-     // apiKey: "AIzaSyBJd54CVWYKoxzXOGYwrktg3WTwZ5RCuvk",
-      authDomain: "azyra-origin.firebaseapp.com",
-      databaseURL: "https://azyra-origin-default-rtdb.asia-southeast1.firebasedatabase.app",
-      projectId: "azyra-origin",
-      storageBucket: "azyra-origin.firebasestorage.app",
-      messagingSenderId: "57934283487",
-      appId: "1:57934283487:web:ff675400aa6b16dcc41f6a"
-    };
+    // ---------- SUPABASE CONFIG (your project) ----------
+    // You gave this URL & key; they are used here.
+    const SUPABASE_URL = 'https://pljriesojkujcpjzpkgt.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBsanJpZXNvamt1amNwanpwa2d0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIxNDgyNTIsImV4cCI6MjA3NzcyNDI1Mn0.83xKUb8_SW3_Er6YYGyrLouv6kmbR89MJL6e5b4u5qU';
 
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
+    const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, { realtime: { params: { eventsPerSecond: 10 } } });
 
     // ---------- small helpers ----------
     const el = id => document.getElementById(id);
@@ -246,24 +254,23 @@
     const uuidPart = (len=6) => Math.random().toString(36).substring(2,2+len);
     const generateAzyraId = () => 'az_' + uuidPart(6);
     const escapeHtml = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    const timeLabel = ts => ts ? new Date(ts).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '';
+    const timeLabel = ts => {
+      if(!ts) return '';
+      const d = new Date(ts);
+      return d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    };
 
     // ---------- State ----------
+    // we persist myId & myName in localStorage (auto-login on device)
     let myId = localStorage.getItem('azyra_id') || null;
     let myName = localStorage.getItem('azyra_name') || null;
     let friends = JSON.parse(localStorage.getItem('azyra_friends') || '[]');
+    let friendNames = JSON.parse(localStorage.getItem('azyra_friend_names') || '{}');
     let activeRoomId = null;
     let lastSent = 0;
 
-    // NEW: current active friend id (just the friend's id, e.g. az_xxx)
-    let currentFriendId = null;
-
-    // NEW: friend names map (local)
-    let friendNames = JSON.parse(localStorage.getItem('azyra_friend_names') || '{}');
-
-    // listener detach helpers
-    let currentMessagesRef = null;
-    let currentChildCallback = null;
+    // realtime subscription for messages
+    let messagesSubscription = null;
 
     // batch incoming messages to avoid UI jank
     let pendingMsgQueue = [];
@@ -279,25 +286,22 @@
     function drainQueue(){
       if(draining) return;
       draining = true;
-      // render up to 20 messages per frame to keep UI smooth
       const chunk = pendingMsgQueue.splice(0, 20);
       chunk.forEach(renderMessageRowImmediate);
       draining = false;
       if(pendingMsgQueue.length > 0){
-        // continue draining asynchronously
         if(typeof requestIdleCallback === 'function'){ requestIdleCallback(drainQueue, {timeout:200}); }
         else { setTimeout(drainQueue, 48); }
       } else {
-        // scroll after all drained
         requestAnimationFrame(()=> scrollMessagesToBottom(true));
       }
     }
 
     // DOM
     const splash = el('splash'), appWrap = el('app');
-    const splashLogo = el('splashLogo') || document.getElementById('splashLogo') || el('splash').querySelector('img');
+    const splashLogo = el('splashLogo') || el('splash').querySelector('img');
     const myIdEl = el('myId'), meNameEl = el('meName'), meHintEl = el('meHint');
-    const copyBtn = el('copyId'), editNameBtn = el('editName'), shareBtn = el('shareIdBtn');
+    const copyBtn = el('copyId'), editNameBtn = el('editName'), shareBtn = el('shareIdBtn'), logoutBtn = el('logoutBtn');
     const friendsList = el('friendsList'), addFriendBtn = el('addFriendBtn');
     const modalAdd = el('modalAdd'), friendIdInput = el('friendIdInput'), confirmAdd = el('confirmAdd'), cancelAdd = el('cancelAdd');
     const modalName = el('modalName'), nameInput = el('nameInput'), saveName = el('saveName'), cancelName = el('cancelName');
@@ -305,34 +309,37 @@
     const messagesEl = el('messages'), messageInput = el('messageInput'), sendBtn = el('sendBtn');
     const themeToggle = el('themeToggle');
 
-    // NEW DOM: save friend modal + buttons
+    // Save friend modal elements
     const modalSaveFriend = el('modalSaveFriend'), saveFriendNameInput = el('saveFriendNameInput');
     const confirmSaveFriend = el('confirmSaveFriend'), cancelSaveFriend = el('cancelSaveFriend');
     const editFriendNameBtn = el('editFriendNameBtn');
 
+    // Auth modal elements
+    const modalAuth = el('modalAuth'), authTitle = el('authTitle'), authName = el('authName'), authPassword = el('authPassword'), authPrimary = el('authPrimary'), authToggle = el('authToggle'), authNote = el('authNote');
+
     // UI Utilities
-    function showModal(m){ m.classList.remove('hide'); m.style.display = 'flex'; setTimeout(()=>m.querySelector('input')?.focus(), 120); }
-    function hideModal(m){ m.classList.add('hide'); m.style.display = 'none'; }
+    function showModal(m){ if(!m) return; m.classList.remove('hide'); m.style.display = 'flex'; setTimeout(()=>m.querySelector('input')?.focus(), 120); }
+    function hideModal(m){ if(!m) return; m.classList.add('hide'); m.style.display = 'none'; }
 
     function renderMyCard(){
       meNameEl.textContent = myName || 'Unnamed';
       myIdEl.textContent = myId || '—';
       meHintEl.textContent = myName ? 'Your Azyra ID' : 'Set a name';
+      logoutBtn.style.display = myId ? 'inline-block' : 'none';
     }
 
     function persistFriends(){ localStorage.setItem('azyra_friends', JSON.stringify(friends)); }
+    function persistFriendNames(){ localStorage.setItem('azyra_friend_names', JSON.stringify(friendNames)); }
 
-    // NEW: helper to get display name (nickname) or id fallback
+    // nickname helpers
     function getDisplayName(id){
       if(!id) return '—';
       return friendNames[id] || id;
     }
-    // NEW: initials helper (for avatar/mini)
     function getInitialsFor(id){
       const name = getDisplayName(id);
-      // if name looks like id (az_...) fallback to id slice
+      if(!name) return '--';
       if(name.startsWith('az_')) return name.slice(3,5).toUpperCase();
-      // try first letters of first two words
       const parts = name.trim().split(/\s+/);
       if(parts.length === 1) return parts[0].slice(0,2).toUpperCase();
       return (parts[0][0] + (parts[1][0] || '')).toUpperCase();
@@ -349,7 +356,6 @@
         const left = document.createElement('div'); left.className='friend-left';
         const avatar = document.createElement('div'); avatar.className='avatar'; avatar.textContent = getInitialsFor(fid);
         const title = document.createElement('div');
-        // show nickname if saved
         title.innerHTML = `<div style="font-weight:600">${escapeHtml(getDisplayName(fid))}</div><div class="small-muted" style="font-size:12px">${escapeHtml(fid)}</div>`;
         left.appendChild(avatar); left.appendChild(title);
         const openBtnWrap = document.createElement('div'); openBtnWrap.style.display='flex';
@@ -366,6 +372,7 @@
     function addFriendById(fid){
       if(!fid) return;
       fid = fid.trim();
+      if(!myId){ alert('Sign up / login first.'); openAuthModal(); return; }
       if(fid === myId){ alert("You cannot add yourself."); return; }
       if(!fid.startsWith('az_')) { alert('Invalid Azyra ID format. Example: az_ab12cd'); return; }
       if(friends.includes(fid)){ openChatWith(fid); return; }
@@ -378,7 +385,6 @@
       if(activeRoomId && activeRoomId.includes(fid)){
         activeRoomId = null; messagesEl.innerHTML = '<div class="small-muted">Select a chat</div>';
         activeTitle.textContent = 'No chat selected'; activeSub.textContent = 'Select or add a friend to start chatting';
-        currentFriendId = null;
       }
     }
 
@@ -386,11 +392,16 @@
 
     // message rendering helpers
     function renderMessageRowImmediate(msg){
-      if(!msg || !msg.id) return;
-      if(document.getElementById('m_'+msg.id)) return;
-      const wrap = document.createElement('div'); wrap.id = 'm_' + msg.id;
-      wrap.className = 'msg ' + (msg.senderId === myId ? 'me' : 'other');
-      wrap.innerHTML = `<div>${escapeHtml(msg.text)}</div><div class="meta">${escapeHtml(msg.senderName || msg.senderId)} • ${timeLabel(msg.createdAt)}</div>`;
+      if(!msg) return;
+      const id = msg.id || msg._id || (msg.created_at? msg.created_at: Math.random().toString(36).slice(2,9));
+      if(document.getElementById('m_'+id)) return;
+      const wrap = document.createElement('div'); wrap.id = 'm_' + id;
+      wrap.className = 'msg ' + ((msg.sender_id === myId || msg.senderId === myId) ? 'me' : 'other');
+      // message text: content or text
+      const text = msg.content || msg.text || '';
+      const name = msg.sender_name || msg.senderName || msg.senderId || msg.sender_id || '';
+      const createdAt = msg.created_at || msg.createdAt || msg.createdAtISO || Date.now();
+      wrap.innerHTML = `<div>${escapeHtml(text)}</div><div class="meta">${escapeHtml(name)} • ${timeLabel(createdAt)}</div>`;
       messagesEl.appendChild(wrap);
       // trim
       const max = 400; while(messagesEl.children.length > max) messagesEl.removeChild(messagesEl.children[0]);
@@ -399,7 +410,6 @@
     }
 
     function renderMessageRow(msg){
-      // queue for batched rendering
       queueMessage(msg);
     }
 
@@ -417,17 +427,74 @@
       }
     }
 
-    // ---------- firebase messages listener management ----------
-    function detachMessagesListener(){
-      if(currentMessagesRef && currentChildCallback){
-        try { off(currentMessagesRef, 'child_added', currentChildCallback); } catch(e){}
-      }
-      currentMessagesRef = null;
-      currentChildCallback = null;
+    // ---------- Supabase messages listener management ----------
+    async function detachMessagesListener(){
+      try {
+        if(messagesSubscription){
+          // unsubscribe previous subscription
+          await supabase.removeChannel(messagesSubscription);
+        }
+      } catch(e){ console.warn('unsubscribe failed', e); }
+      messagesSubscription = null;
       pendingMsgQueue = [];
     }
 
+    async function loadInitialMessagesFor(roomId){
+      if(!roomId) return;
+      messagesEl.innerHTML = '<div class="small-muted center">Loading messages… <span style="margin-left:8px" class="loader"></span></div>';
+      try {
+        const { data, error } = await supabase
+          .from('messages')
+          .select('*')
+          .eq('azyra_room', roomId)
+          .order('created_at', { ascending: true })
+          .limit(300);
+        if(error) throw error;
+        messagesEl.innerHTML = '';
+        if(!data || data.length === 0){
+          messagesEl.innerHTML = '<div class="small-muted center">No messages — say hi</div>';
+          return;
+        }
+        data.forEach(d => renderMessageRowImmediate({
+          id: d.id || d.created_at,
+          senderId: d.sender_id,
+          senderName: d.sender_name,
+          text: d.content,
+          createdAt: d.created_at
+        }));
+        setTimeout(()=> scrollMessagesToBottom(false), 80);
+      } catch(e){
+        console.error('load messages failed', e);
+        messagesEl.innerHTML = '<div class="small-muted center">Failed to load messages</div>';
+      }
+    }
+
+    async function subscribeToRoom(roomId){
+      if(!roomId) return;
+      // detach old
+      await detachMessagesListener();
+
+      // Subscribe to inserts on messages where room matches
+      const filter = `azyra_room=eq.${roomId}`;
+      messagesSubscription = supabase.channel(`room_${roomId}`)
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter }, (payload) => {
+          const newRow = payload.new;
+          renderMessageRow({
+            id: newRow.id || newRow.created_at,
+            senderId: newRow.sender_id,
+            senderName: newRow.sender_name,
+            text: newRow.content,
+            createdAt: newRow.created_at
+          });
+        })
+        .subscribe(async (status) => {
+          // status can be 'SUBSCRIBED' etc.
+          // console.log('subscribe status', status);
+        });
+    }
+
     async function openChatWith(friendId){
+      if(!myId){ alert('Please sign up or log in first.'); openAuthModal(); return; }
       // store current friend id for save-name functionality
       currentFriendId = friendId;
 
@@ -440,23 +507,10 @@
       // reset UI
       messagesEl.innerHTML = '<div class="small-muted center">Loading messages… <span style="margin-left:8px" class="loader"></span></div>';
 
-      // detach previous
-      detachMessagesListener();
-
-      const messagesPath = `rooms/${activeRoomId}/messages`;
-      const q = query(ref(db, messagesPath), limitToLast(300));
-      currentMessagesRef = ref(db, messagesPath);
-
-      // attach child_added
-      const cb = (snap) => {
-        const msg = snap.val(); const id = snap.key;
-        // normalize createdAt
-        let ts = msg && msg.createdAt;
-        if(typeof ts !== 'number') ts = Date.now();
-        renderMessageRow({ id, ...msg, createdAt: ts });
-      };
-      currentChildCallback = cb;
-      onChildAdded(q, cb);
+      // detach previous subscription and load messages
+      await detachMessagesListener();
+      await loadInitialMessagesFor(activeRoomId);
+      await subscribeToRoom(activeRoomId);
 
       // ensure friend in local list
       if(!friends.includes(friendId)){ friends.unshift(friendId); persistFriends(); renderFriends(); }
@@ -471,29 +525,38 @@
     async function sendMessage(text){
       if(!activeRoomId){ alert('Open a chat first'); return; }
       if(!text || !text.trim()) return;
+      const nowISO = new Date().toISOString();
       const now = Date.now();
       if(now - lastSent < 600) return;
       lastSent = now;
-      const msgObj = { senderId: myId, senderName: myName || myId, text: text.trim(), createdAt: now };
+      const payload = {
+        azyra_room: activeRoomId,
+        sender_id: myId,
+        sender_name: myName || myId,
+        content: text.trim(),
+        created_at: nowISO
+      };
       try {
-        await push(ref(db, `rooms/${activeRoomId}/messages`), msgObj);
+        const { error } = await supabase
+          .from('messages')
+          .insert([payload]);
+        if(error) throw error;
         messageInput.value = ''; sendBtn.disabled = true; messageInput.style.height = '48px';
       } catch(e){
         console.error('send failed', e);
-        alert('Failed to send message — check your DB rules and network.');
+        alert('Failed to send message — check project API key, DB policies, and network.');
       }
     }
 
     // ---------- UI Events ----------
-    // copy ID
     copyBtn.addEventListener('click', async ()=> {
       if(!myId) return alert('No ID yet');
       try { await navigator.clipboard.writeText(myId); alert('ID copied'); }
       catch(e){ alert('Copy failed — manually select and copy your ID.'); }
     });
 
-    // share ID
     shareBtn.addEventListener('click', async ()=> {
+      if(!myId) return alert('No ID yet');
       if(navigator.share){
         try{ await navigator.share({title:'Azyra ID', text:`My Azyra ID: ${myId}`, url: location.href}); }catch(e){}
       } else {
@@ -501,7 +564,7 @@
       }
     });
 
-    // theme toggle (now toggles CSS variables safely)
+    // theme toggle
     function applyTheme(theme){
       if(theme === 'light'){
         document.documentElement.setAttribute('data-theme','light');
@@ -516,14 +579,22 @@
     }
     themeToggle.addEventListener('click', ()=>{ const cur = localStorage.getItem('azyra_theme') || 'dark'; const next = cur === 'dark' ? 'light' : 'dark'; applyTheme(next); });
 
-    // Edit name modal
+    // Edit name modal (local + server update)
     editNameBtn.addEventListener('click', ()=> { nameInput.value = myName || ''; showModal(modalName); });
     cancelName.addEventListener('click', ()=> hideModal(modalName));
-    saveName.addEventListener('click', ()=> {
+    saveName.addEventListener('click', async ()=> {
       const v = nameInput.value.trim();
       if(v.length < 2 || v.length > 20){ alert('Name 2-20 chars'); return; }
       myName = v; localStorage.setItem('azyra_name', myName); renderMyCard(); hideModal(modalName);
-      if(myId) set(ref(db, `users/${myId}`), { id: myId, name: myName, updatedAt: Date.now() }).catch(()=>{});
+      if(myId){
+        // update users table
+        try {
+          const { error } = await supabase
+            .from('users')
+            .upsert({ azyra_id: myId, name: myName }, { onConflict: 'azyra_id' });
+          if(error) throw error;
+        } catch(e){ console.warn('update user failed', e); }
+      }
     });
 
     // Add friend modal
@@ -537,7 +608,7 @@
     });
     friendIdInput.addEventListener('keydown', (e)=> { if(e.key === 'Enter') confirmAdd.click(); });
 
-    // composer: auto resize + enter to send (shift+enter = newline)
+    // composer: auto resize + enter to send
     let resizeRaf = null;
     function resizeTextarea(){
       if(resizeRaf) cancelAnimationFrame(resizeRaf);
@@ -566,25 +637,21 @@
     // click outside modal to hide
     document.querySelectorAll('.modal').forEach(m=>{ m.addEventListener('click', (e)=>{ if(e.target === m) hideModal(m); }); });
 
-    // ---------- Save Friend Name logic (NEW) ----------
-    // open modal prefilling with existing nickname if present
+    // ---------- Save Friend Name logic ----------
     function openSaveFriendModal(){
       if(!currentFriendId){ alert('Open a chat first'); return; }
       saveFriendNameInput.value = friendNames[currentFriendId] || '';
       showModal(modalSaveFriend);
     }
-    // save the nickname locally
     function saveFriendName(){
       if(!currentFriendId) return;
       const v = (saveFriendNameInput.value || '').trim();
       if(!v){
-        // if empty, delete mapping
         delete friendNames[currentFriendId];
       } else {
         friendNames[currentFriendId] = v;
       }
-      localStorage.setItem('azyra_friend_names', JSON.stringify(friendNames));
-      // update UI: header and friends list
+      persistFriendNames();
       if(currentFriendId){
         activeTitle.textContent = getDisplayName(currentFriendId);
         activeMini.textContent = getInitialsFor(currentFriendId);
@@ -592,59 +659,171 @@
       renderFriends();
       hideModal(modalSaveFriend);
     }
-    // cancel
     cancelSaveFriend.addEventListener('click', ()=> hideModal(modalSaveFriend));
     confirmSaveFriend.addEventListener('click', saveFriendName);
-    // open when clicking edit button in header
     if(editFriendNameBtn) editFriendNameBtn.addEventListener('click', openSaveFriendModal);
 
-    // ---------- Initialization ----------
-    function ensureUserInDb(){ if(!myId) return; set(ref(db, `users/${myId}`), { id: myId, name: myName || '', updatedAt: Date.now() }).catch(()=>{}); }
+    // ---------- AUTH (signup/login stored in `users` table) ----------
+    let authMode = 'signup'; // 'signup' or 'login'
+    function openAuthModal(mode='signup'){
+      authMode = mode;
+      authTitle.textContent = (mode === 'signup') ? 'Signup' : 'Log in';
+      authPrimary.textContent = (mode === 'signup') ? 'Signup' : 'Login';
+      authToggle.textContent = (mode === 'signup') ? 'Already have an account? Log in' : 'New here? Signup';
+      authName.value = '';
+      authPassword.value = '';
+      showModal(modalAuth);
+    }
+    function closeAuthModal(){ hideModal(modalAuth); }
 
+    // auth primary action
+    authPrimary.addEventListener('click', async ()=>{
+      const name = (authName.value || '').trim();
+      const pass = (authPassword.value || '').trim();
+      if(name.length < 2 || name.length > 20){ alert('Name 2-20 chars'); return; }
+      if(pass.length < 3){ alert('Password must be at least 3 chars'); return; }
+
+      if(authMode === 'signup'){
+        // create new user row with generated azyra id
+        const newId = generateAzyraId();
+        try {
+          const payload = { azyra_id: newId, name, password: pass, created_at: new Date().toISOString() };
+          const { data, error } = await supabase.from('users').insert([payload]).select().single();
+          if(error){
+            // maybe name already exists — give feedback
+            alert('Signup failed: ' + (error.message || JSON.stringify(error)));
+            return;
+          }
+          // success: save locally
+          myId = data.azyra_id || newId;
+          myName = data.name || name;
+          localStorage.setItem('azyra_id', myId);
+          localStorage.setItem('azyra_name', myName);
+          renderMyCard();
+          closeAuthModal();
+          ensureUserInDb(); // upsert just in case
+          // open first chat placeholder or just continue
+        } catch(e){
+          console.error('signup error', e);
+          alert('Signup failed — check console.');
+        }
+      } else {
+        // login: find row
+        try {
+          const { data, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('name', name)
+            .eq('password', pass)
+            .limit(1)
+            .single();
+          if(error){ alert('Login failed — check name/password'); return; }
+          // success
+          myId = data.azyra_id;
+          myName = data.name;
+          localStorage.setItem('azyra_id', myId);
+          localStorage.setItem('azyra_name', myName);
+          renderMyCard();
+          closeAuthModal();
+        } catch(e){
+          console.error('login error', e);
+          alert('Login failed — check console.');
+        }
+      }
+    });
+
+    // toggle auth mode
+    authToggle.addEventListener('click', ()=> {
+      authMode = (authMode === 'signup') ? 'login' : 'signup';
+      openAuthModal(authMode);
+    });
+
+    // open auth if no local user at startup
+    function openAuthIfNeeded(){
+      if(!myId || !myName){
+        // if server-side we could check cookie — but here we just prompt
+        setTimeout(()=> openAuthModal('signup'), 600);
+      }
+    }
+
+    // logout
+    logoutBtn.addEventListener('click', async ()=> {
+      if(!confirm('Logout from this device?')) return;
+      localStorage.removeItem('azyra_id');
+      localStorage.removeItem('azyra_name');
+      myId = null; myName = null;
+      renderMyCard();
+      // detach realtime
+      await detachMessagesListener();
+      messagesEl.innerHTML = '<div class="small-muted center">Logged out — sign up or login</div>';
+      openAuthModal('login');
+    });
+
+    // ensure user row exists (upsert) — safe to call
+    async function ensureUserInDb(){
+      if(!myId) return;
+      try {
+        await supabase.from('users').upsert({ azyra_id: myId, name: myName || '', updated_at: new Date().toISOString() }, { onConflict: 'azyra_id' });
+      } catch(e){ console.warn('ensure user failed', e); }
+    }
+
+    // ---------- Initialization ----------
     function initialSetup(){
       // theme
       const theme = localStorage.getItem('azyra_theme') || 'dark';
       applyTheme(theme);
 
-      // id
-      if(!myId){ myId = generateAzyraId(); localStorage.setItem('azyra_id', myId); }
-      // name
-      if(!myName){ setTimeout(()=> showModal(modalName), 600); }
+      // ensure splash smoothing + no scroll during splash
+      document.body.classList.add('splash-active');
+
+      if(!myId){
+        // keep myId null until signup/login
+        // we will prompt in a moment
+      } else {
+        // we have local user -> ensure in DB
+        ensureUserInDb();
+      }
+
+      // render UI
       renderMyCard(); renderFriends();
 
-      // ensure splash remains until logo loaded or timeout
+      // splash hide logic (smoother on mobile)
       let hidden = false;
       const hideSplash = ()=>{
         if(hidden) return;
         hidden = true;
         splash.classList.add('hide');
-        setTimeout(()=> { splash.style.display = 'none'; }, 550);
+        setTimeout(()=> { splash.style.display = 'none'; }, 580);
         appWrap.style.display = 'block';
         document.body.classList.remove('splash-active');
       };
 
-      // add scroll lock while splash active
-      document.body.classList.add('splash-active');
-
-      // adaptive delay & listeners
       const isMobile = /Mobi|Android/i.test(navigator.userAgent);
-      const fallbackDelay = isMobile ? 3000 : 1800;
+      const fallbackDelay = isMobile ? 2800 : 1200;
 
       if(splashLogo && splashLogo.complete){
-        // image already cached, show quickly but keep a short delay for smoothness
-        setTimeout(hideSplash, isMobile ? 1200 : 700);
+        setTimeout(hideSplash, isMobile ? 1400 : 700);
       } else if(splashLogo){
         splashLogo.addEventListener('load', ()=> hideSplash());
         splashLogo.addEventListener('error', ()=> hideSplash());
-        // safety fallback — longer on mobile so it doesn't blink
         setTimeout(()=> hideSplash(), fallbackDelay);
       } else {
         setTimeout(hideSplash, fallbackDelay);
       }
 
       // open first friend chat if any
-      if(friends.length > 0) openChatWith(friends[0]);
-      ensureUserInDb();
+      if(friends.length > 0){
+        // if logged in we can open
+        if(myId) openChatWith(friends[0]);
+      }
+
+      // if no user, open auth modal after splash
+      setTimeout(()=> {
+        if(!myId || !myName) openAuthIfNeeded();
+      }, fallbackDelay + 300);
+
+      // periodically refresh presence (optional)
+      setInterval(()=> { if(myId) ensureUserInDb(); }, 60_000);
     }
 
     // accessibility: ESC to close modals
@@ -652,13 +831,9 @@
       if(e.key === 'Escape') document.querySelectorAll('.modal').forEach(m=> hideModal(m));
     });
 
-    // keep lastSeen updated
-    setInterval(()=> { if(myId) set(ref(db, `users/${myId}/lastSeen`), Date.now()).catch(()=>{}); }, 60_000);
-
-    // start
+    // Start
     window.addEventListener('load', initialSetup);
 
   </script>
 </body>
 </html>
-
